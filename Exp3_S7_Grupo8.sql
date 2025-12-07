@@ -605,7 +605,7 @@ ORDER BY
 -- Consulta para verificar la vista
 SELECT * FROM v_aumentos_estudios ORDER BY 4, 1;
 
--- Etapa 2: Optimimzación de consultas
+-- Etapa 2: Optimización de consultas
 /* ! IMPORTANTE: EJECUTAR AMBAS CONSULTAS PREVIO A CREACION DE INDICES PARA EVIDENCIAR ANTES Y DESPUES */
 
 -- CONSULTAS ORIGINALES SIN OPTIMIZACION
@@ -714,5 +714,6 @@ Al ejecutar nuevamente las consultas y obtener los planes de ejecución evidenci
 para pasar a usar INDEX RANGE SCAN sobre los índices creados y TABLE ACCESS BY INDEX ROWID BATCHED.
 Lo cual indica que las consultas acceden a los datos de forma optimizada,
 reduciendo el costo de ejecución según lo solicitado en el requerimiento.
+
 
 */
