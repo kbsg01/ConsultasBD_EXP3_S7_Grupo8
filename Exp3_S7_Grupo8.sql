@@ -476,12 +476,12 @@ SELECT
          t.sueldo_base * (1 + NVL(b.porcentaje, 0)),
          'FM999G999G999'
        )                                                            AS simulacion_antiguedad
-FROM   trabajador t
+FROM   s_trabajador t
        JOIN isapre i
          ON t.cod_isapre = i.cod_isapre
-       LEFT JOIN tickets_concierto tc
+       LEFT JOIN s_tickets_concierto tc
          ON t.numrut = tc.numrut_t
-       LEFT JOIN bono_antiguedad b
+       LEFT JOIN s_bono_antiguedad b
          ON TRUNC(MONTHS_BETWEEN(TRUNC(SYSDATE), t.fecing) / 12)
             BETWEEN b.limite_inferior AND b.limite_superior
 WHERE  i.porc_descto_isapre > 4
@@ -489,7 +489,8 @@ WHERE  i.porc_descto_isapre > 4
   AND  TRUNC(MONTHS_BETWEEN(TRUNC(SYSDATE), t.fecnac) / 12) < 50
 ORDER BY
        NVL(tc.monto_ticket, 0) DESC,
-       nombre_trabajador ASC;
+       INITCAP(t.nombre || ' ' || t.appaterno || ' ' || t.apmaterno) ASC;
+
 
 
 -- INSERT en DETALLE_BONIFICACIONES_TRABAJADOR
@@ -513,6 +514,7 @@ SELECT
        NVL(TO_CHAR(tc.nro_ticket), 'No hay info'),
        t.direccion,
        i.nombre_isapre,
+
        '$' || TO_CHAR(NVL(tc.monto_ticket, 0), 'FM999G999G999'),
 
        '$' || TO_CHAR(
@@ -540,20 +542,21 @@ SELECT
          t.sueldo_base * (1 + NVL(b.porcentaje, 0)),
          'FM999G999G999'
        )
-FROM   trabajador t
+FROM   s_trabajador t
        JOIN isapre i
          ON t.cod_isapre = i.cod_isapre
-       LEFT JOIN tickets_concierto tc
+       LEFT JOIN s_tickets_concierto tc
          ON t.numrut = tc.numrut_t
-       LEFT JOIN bono_antiguedad b
+       LEFT JOIN s_bono_antiguedad b
          ON TRUNC(MONTHS_BETWEEN(TRUNC(SYSDATE), t.fecing) / 12)
             BETWEEN b.limite_inferior AND b.limite_superior
 WHERE  i.porc_descto_isapre > 4
   AND  t.fecnac IS NOT NULL
-  AND  TRUNC(MONTHS_BETWEEN(TRUNC(SYSDATE), t.fecnac) / 12) < 50;
-
+  AND  TRUNC(MONTHS_BETWEEN(TRUNC(SYSDATE), t.fecnac) / 12) < 50
+ORDER BY
+       NVL(tc.monto_ticket, 0) DESC,
+       INITCAP(t.nombre || ' ' || t.appaterno || ' ' || t.apmaterno) ASC;
 COMMIT;
-
 
 -- Consulta para validar INSERT en DETALLE_BONIFICACIONES_TRABAJADOR
 SELECT * FROM DETALLE_BONIFICACIONES_TRABAJADOR
