@@ -561,7 +561,9 @@ COMMIT;
 -- Consulta para validar INSERT en DETALLE_BONIFICACIONES_TRABAJADOR
 SELECT * FROM DETALLE_BONIFICACIONES_TRABAJADOR
 ORDER BY monto desc, nombre_trabajador;
+-- Limpieza para pruebas
 --TRUNCATE TABLE detalle_bonificaciones_trabajador;
+
 
 -- CASO 2: VISTAS
 /*
@@ -643,3 +645,4 @@ para pasar a usar INDEX RANGE SCAN sobre los índices creados y TABLE ACCESS BY 
 Lo cual indica que las consultas acceden a los datos de forma optimizada,
 reduciendo el costo de ejecución según el requerimiento
 */
+
