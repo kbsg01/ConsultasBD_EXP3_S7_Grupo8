@@ -444,24 +444,24 @@ CREATE SYNONYM s_tickets_concierto FOR tickets_concierto;
 SELECT
        t.numrut || '-' || t.dvrut                                   AS rut,
        INITCAP(t.nombre || ' ' || t.appaterno || ' ' || t.apmaterno) AS nombre_trabajador,
-       '$' || TO_CHAR(t.sueldo_base, 'FM999G999G999')               AS sueldo_base,
+       TO_CHAR(t.sueldo_base, 'FM$999G999G999')               AS sueldo_base,
        NVL(TO_CHAR(tc.nro_ticket), 'No hay info')                   AS num_ticket,
        t.direccion                                                  AS direccion,
        i.nombre_isapre                                              AS sistema_salud,
 
-       '$' || TO_CHAR(NVL(tc.monto_ticket, 0), 'FM999G999G999')     AS monto,
+       TO_CHAR(NVL(tc.monto_ticket, 0), 'FM$999G999G999')     AS monto,
 
-       '$' || TO_CHAR(
+       TO_CHAR(
          CASE
            WHEN tc.monto_ticket IS NULL THEN 0
            WHEN tc.monto_ticket <= 50000   THEN 0
            WHEN tc.monto_ticket <= 100000  THEN tc.monto_ticket * 0.05
            ELSE tc.monto_ticket * 0.07
          END,
-         'FM999G999G999'
+         'FM$999G999G999'
        )                                                            AS bonif_x_ticket,
 
-       '$' || TO_CHAR(
+       TO_CHAR(
          t.sueldo_base +
          CASE
            WHEN tc.monto_ticket IS NULL THEN 0
@@ -469,12 +469,12 @@ SELECT
            WHEN tc.monto_ticket <= 100000  THEN tc.monto_ticket * 0.05
            ELSE tc.monto_ticket * 0.07
          END,
-         'FM999G999G999'
+         'FM$999G999G999'
        )                                                            AS simulacion_x_ticket,
 
-       '$' || TO_CHAR(
+       TO_CHAR(
          t.sueldo_base * (1 + NVL(b.porcentaje, 0)),
-         'FM999G999G999'
+         'FM$999G999G999'
        )                                                            AS simulacion_antiguedad
 FROM   s_trabajador t
        JOIN isapre i
@@ -494,7 +494,8 @@ ORDER BY
 
 
 -- INSERT en DETALLE_BONIFICACIONES_TRABAJADOR
-INSERT INTO detalle_bonificaciones_trabajador
+INSERT /*+ NO_PARALLEL */ --HINT para evitar paralelismo para instancias locales
+INTO detalle_bonificaciones_trabajador
        (num,
         rut,
         nombre_trabajador,
@@ -510,24 +511,24 @@ SELECT
        seq_det_bonif.NEXTVAL,
        t.numrut || '-' || t.dvrut,
        INITCAP(t.nombre || ' ' || t.appaterno || ' ' || t.apmaterno),
-       '$' || TO_CHAR(t.sueldo_base, 'FM999G999G999'),
+       TO_CHAR(t.sueldo_base, 'FM$999G999G999'),
        NVL(TO_CHAR(tc.nro_ticket), 'No hay info'),
        t.direccion,
        i.nombre_isapre,
 
-       '$' || TO_CHAR(NVL(tc.monto_ticket, 0), 'FM999G999G999'),
+       TO_CHAR(NVL(tc.monto_ticket, 0), 'FM$999G999G999'),
 
-       '$' || TO_CHAR(
+        TO_CHAR(
          CASE
            WHEN tc.monto_ticket IS NULL THEN 0
            WHEN tc.monto_ticket <= 50000   THEN 0
            WHEN tc.monto_ticket <= 100000  THEN tc.monto_ticket * 0.05
            ELSE tc.monto_ticket * 0.07
          END,
-         'FM999G999G999'
+         'FM$999G999G999'
        ),
 
-       '$' || TO_CHAR(
+       TO_CHAR(
          t.sueldo_base +
          CASE
            WHEN tc.monto_ticket IS NULL THEN 0
@@ -535,12 +536,12 @@ SELECT
            WHEN tc.monto_ticket <= 100000  THEN tc.monto_ticket * 0.05
            ELSE tc.monto_ticket * 0.07
          END,
-         'FM999G999G999'
+         'FM$999G999G999'
        ),
 
-       '$' || TO_CHAR(
+       TO_CHAR(
          t.sueldo_base * (1 + NVL(b.porcentaje, 0)),
-         'FM999G999G999'
+         'FM$999G999G999'
        )
 FROM   s_trabajador t
        JOIN isapre i
@@ -552,15 +553,12 @@ FROM   s_trabajador t
             BETWEEN b.limite_inferior AND b.limite_superior
 WHERE  i.porc_descto_isapre > 4
   AND  t.fecnac IS NOT NULL
-  AND  TRUNC(MONTHS_BETWEEN(TRUNC(SYSDATE), t.fecnac) / 12) < 50
-ORDER BY
-       NVL(tc.monto_ticket, 0) DESC,
-       INITCAP(t.nombre || ' ' || t.appaterno || ' ' || t.apmaterno) ASC;
+  AND  TRUNC(MONTHS_BETWEEN(TRUNC(SYSDATE), t.fecnac) / 12) < 50;
 COMMIT;
 
 -- Consulta para validar INSERT en DETALLE_BONIFICACIONES_TRABAJADOR
 SELECT * FROM DETALLE_BONIFICACIONES_TRABAJADOR
-ORDER BY monto desc, nombre_trabajador;
+ORDER BY monto DESC, nombre_trabajador;
 -- Limpieza para pruebas
 --TRUNCATE TABLE detalle_bonificaciones_trabajador;
 
