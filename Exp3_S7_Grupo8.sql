@@ -442,41 +442,46 @@ CREATE SYNONYM s_tickets_concierto FOR tickets_concierto;
 
 -- Simulación de reporte
 SELECT
-       t.numrut || '-' || t.dvrut                                    AS rut,
-       INITCAP(t.appaterno || ' ' || t.apmaterno || ' ' || t.nombre) AS nombre_trabajador,
-       TO_CHAR(t.sueldo_base, 'FM$999G999G999')                       AS sueldo_base,
-       NVL(TO_CHAR(tc.nro_ticket), 'No hay info')                    AS num_ticket,
-       t.direccion                                                   AS direccion,
-       i.nombre_isapre                                               AS sistema_salud,
-       NVL(TO_CHAR(tc.monto_ticket, 'FM999G999G999'), 'No hay info') AS monto,
-       CASE
-         WHEN tc.nro_ticket IS NULL THEN 'No hay info'
-         WHEN tc.monto_ticket <= 50000   THEN '0'
-         WHEN tc.monto_ticket <= 100000  THEN TO_CHAR(tc.monto_ticket * 0.05, 'FM$999G999G999')
-         ELSE TO_CHAR(tc.monto_ticket * 0.07, 'FM$999G999G999')
-       END                                                           AS bonif_x_ticket,
-       CASE
-         WHEN tc.nro_ticket IS NULL THEN 'No hay info'
-         ELSE TO_CHAR(
-                t.sueldo_base +
-                CASE
-                  WHEN tc.monto_ticket <= 50000   THEN 0
-                  WHEN tc.monto_ticket <= 100000  THEN tc.monto_ticket * 0.05
-                  ELSE tc.monto_ticket * 0.07
-                END,
-                'FM$999G999G999'
-              )
-       END                                                           AS simulacion_x_ticket,
-       TO_CHAR(
+       t.numrut || '-' || t.dvrut                                   AS rut,
+       INITCAP(t.nombre || ' ' || t.appaterno || ' ' || t.apmaterno) AS nombre_trabajador,
+       '$' || TO_CHAR(t.sueldo_base, 'FM999G999G999')               AS sueldo_base,
+       NVL(TO_CHAR(tc.nro_ticket), 'No hay info')                   AS num_ticket,
+       t.direccion                                                  AS direccion,
+       i.nombre_isapre                                              AS sistema_salud,
+
+       '$' || TO_CHAR(NVL(tc.monto_ticket, 0), 'FM999G999G999')     AS monto,
+
+       '$' || TO_CHAR(
+         CASE
+           WHEN tc.monto_ticket IS NULL THEN 0
+           WHEN tc.monto_ticket <= 50000   THEN 0
+           WHEN tc.monto_ticket <= 100000  THEN tc.monto_ticket * 0.05
+           ELSE tc.monto_ticket * 0.07
+         END,
+         'FM999G999G999'
+       )                                                            AS bonif_x_ticket,
+
+       '$' || TO_CHAR(
+         t.sueldo_base +
+         CASE
+           WHEN tc.monto_ticket IS NULL THEN 0
+           WHEN tc.monto_ticket <= 50000   THEN 0
+           WHEN tc.monto_ticket <= 100000  THEN tc.monto_ticket * 0.05
+           ELSE tc.monto_ticket * 0.07
+         END,
+         'FM999G999G999'
+       )                                                            AS simulacion_x_ticket,
+
+       '$' || TO_CHAR(
          t.sueldo_base * (1 + NVL(b.porcentaje, 0)),
-         'FM$999G999G999'
-       )                                                             AS simulacion_antiguedad
-FROM   s_trabajador t
+         'FM999G999G999'
+       )                                                            AS simulacion_antiguedad
+FROM   trabajador t
        JOIN isapre i
          ON t.cod_isapre = i.cod_isapre
-       LEFT JOIN s_tickets_concierto tc
+       LEFT JOIN tickets_concierto tc
          ON t.numrut = tc.numrut_t
-       LEFT JOIN s_bono_antiguedad b
+       LEFT JOIN bono_antiguedad b
          ON TRUNC(MONTHS_BETWEEN(TRUNC(SYSDATE), t.fecing) / 12)
             BETWEEN b.limite_inferior AND b.limite_superior
 WHERE  i.porc_descto_isapre > 4
@@ -485,6 +490,7 @@ WHERE  i.porc_descto_isapre > 4
 ORDER BY
        NVL(tc.monto_ticket, 0) DESC,
        nombre_trabajador ASC;
+
 
 -- INSERT en DETALLE_BONIFICACIONES_TRABAJADOR
 INSERT INTO detalle_bonificaciones_trabajador
@@ -500,144 +506,64 @@ INSERT INTO detalle_bonificaciones_trabajador
         simulacion_x_ticket,
         simulacion_antiguedad)
 SELECT
-       seq_det_bonif.NEXTVAL                                         AS num,
-       t.numrut || '-' || t.dvrut                                    AS rut,
-       INITCAP(t.nombre || ' ' || t.appaterno || ' ' || t.apmaterno) AS nombre_trabajador,
-       TO_CHAR(t.sueldo_base, 'FM$999G999G999')                       AS sueldo_base,
-       NVL(TO_CHAR(tc.nro_ticket), 'No hay info')                    AS num_ticket,
-       INITCAP(t.direccion)                                          AS direccion,
-       i.nombre_isapre                                               AS sistema_salud,
-       NVL(TO_CHAR(tc.monto_ticket, 'FM$999G999G999'), 'No hay info') AS monto,
-       CASE
-         WHEN tc.nro_ticket IS NULL THEN 'No hay info'
-         WHEN tc.monto_ticket <= 50000   THEN '0'
-         WHEN tc.monto_ticket <= 100000  THEN TO_CHAR(tc.monto_ticket * 0.05, 'FM$999G999G999')
-         ELSE TO_CHAR(tc.monto_ticket * 0.07, 'FM$999G999G999')
-       END                                                           AS bonif_x_ticket,
-       CASE
-         WHEN tc.nro_ticket IS NULL THEN 'No hay info'
-         ELSE TO_CHAR(
-                t.sueldo_base +
-                CASE
-                  WHEN tc.monto_ticket <= 50000   THEN 0
-                  WHEN tc.monto_ticket <= 100000  THEN tc.monto_ticket * 0.05
-                  ELSE tc.monto_ticket * 0.07
-                END,
-                'FM$999G999G999'
-              )
-       END                                                           AS simulacion_x_ticket,
-       TO_CHAR(
+       seq_det_bonif.NEXTVAL,
+       t.numrut || '-' || t.dvrut,
+       INITCAP(t.nombre || ' ' || t.appaterno || ' ' || t.apmaterno),
+       '$' || TO_CHAR(t.sueldo_base, 'FM999G999G999'),
+       NVL(TO_CHAR(tc.nro_ticket), 'No hay info'),
+       t.direccion,
+       i.nombre_isapre,
+       '$' || TO_CHAR(NVL(tc.monto_ticket, 0), 'FM999G999G999'),
+
+       '$' || TO_CHAR(
+         CASE
+           WHEN tc.monto_ticket IS NULL THEN 0
+           WHEN tc.monto_ticket <= 50000   THEN 0
+           WHEN tc.monto_ticket <= 100000  THEN tc.monto_ticket * 0.05
+           ELSE tc.monto_ticket * 0.07
+         END,
+         'FM999G999G999'
+       ),
+
+       '$' || TO_CHAR(
+         t.sueldo_base +
+         CASE
+           WHEN tc.monto_ticket IS NULL THEN 0
+           WHEN tc.monto_ticket <= 50000   THEN 0
+           WHEN tc.monto_ticket <= 100000  THEN tc.monto_ticket * 0.05
+           ELSE tc.monto_ticket * 0.07
+         END,
+         'FM999G999G999'
+       ),
+
+       '$' || TO_CHAR(
          t.sueldo_base * (1 + NVL(b.porcentaje, 0)),
-         'FM$999G999G999'
-       )                                                             AS simulacion_antiguedad
-FROM   s_trabajador t
+         'FM999G999G999'
+       )
+FROM   trabajador t
        JOIN isapre i
          ON t.cod_isapre = i.cod_isapre
-       LEFT JOIN s_tickets_concierto tc
+       LEFT JOIN tickets_concierto tc
          ON t.numrut = tc.numrut_t
-       LEFT JOIN s_bono_antiguedad b
+       LEFT JOIN bono_antiguedad b
          ON TRUNC(MONTHS_BETWEEN(TRUNC(SYSDATE), t.fecing) / 12)
             BETWEEN b.limite_inferior AND b.limite_superior
 WHERE  i.porc_descto_isapre > 4
   AND  t.fecnac IS NOT NULL
   AND  TRUNC(MONTHS_BETWEEN(TRUNC(SYSDATE), t.fecnac) / 12) < 50;
+
 COMMIT;
+
 
 -- Consulta para validar INSERT en DETALLE_BONIFICACIONES_TRABAJADOR
 SELECT * FROM DETALLE_BONIFICACIONES_TRABAJADOR
+ORDER BY monto desc, nombre_trabajador;
+--TRUNCATE TABLE detalle_bonificaciones_trabajador;
 
 -- CASO 2: VISTAS
--- Etapa 1: Vista V_AUMENTOS_ESTUDIOS
-
--- Primero crear sinónimos privados
-CREATE OR REPLACE SYNONYM s_bono_escolar FOR bono_escolar;
-CREATE OR REPLACE SYNONYM s_trabajador FOR trabajador;
-
--- Crear o reemplazar la vista V_AUMENTOS_ESTUDIOS
-CREATE OR REPLACE VIEW v_aumentos_estudios AS
-SELECT 
-    -- RUT formateado sin puntos pero con separador de miles
-    TO_CHAR(t.numrut, 'FM999G999G999') || '-' || t.dvrut AS rut_trabajador,
-    
-    -- Nombre completo (formato: "Teresa Vidal Perez")
-    INITCAP(t.nombre) || ' ' || 
-    INITCAP(t.appaterno) || ' ' || 
-    INITCAP(t.apmaterno) AS trabajador,
-    
-    -- Descripción del nivel de estudios (DESCRIP)
-    be.descrip AS descrip,
-    
-    -- Porcentaje de bono formateado como 8 dígitos (00000001, 00000002, etc.)
-    LPAD(be.porc_bono, 8, '0') AS pct_estudios,
-    
-    -- Sueldo base actual formateado sin símbolo $
-    TO_CHAR(t.sueldo_base, 'FM999G999G999') AS sueldo_actual,
-    
-    -- Aumento calculado: sueldo_base * (porc_bono/100) formateado sin símbolo $
-    TO_CHAR(
-        ROUND(t.sueldo_base * (be.porc_bono / 100)), 
-        'FM999G999G999'
-    ) AS aumento,
-    
-    -- Simulación del sueldo con aumento: sueldo_base + aumento, con símbolo $
-    TO_CHAR(
-        t.sueldo_base + ROUND(t.sueldo_base * (be.porc_bono / 100)), 
-        'FM$999G999G999'
-    ) AS sueldo_aumentado
-    
-FROM s_trabajador t
-INNER JOIN s_bono_escolar be ON t.id_escolaridad_t = be.id_escolar
-INNER JOIN tipo_trabajador tt ON t.id_categoria_t = tt.id_categoria
-WHERE tt.desc_categoria = 'CAJERO'
-   OR t.numrut IN (
-       -- Subconsulta: trabajadores con 1 o 2 cargas familiares
-       SELECT numrut_t
-       FROM asignacion_familiar
-       GROUP BY numrut_t
-       HAVING COUNT(*) BETWEEN 1 AND 2
-   )
-ORDER BY 
-    be.porc_bono ASC,
-    INITCAP(t.nombre) || ' ' || 
-    INITCAP(t.appaterno) || ' ' || 
-    INITCAP(t.apmaterno) ASC;
-
--- Consulta para verificar la vista
-SELECT * FROM v_aumentos_estudios ORDER BY 4, 1;
-
--- Etapa 2: Optimización de consultas
-/* ! IMPORTANTE: EJECUTAR AMBAS CONSULTAS PREVIO A CREACION DE INDICES PARA EVIDENCIAR ANTES Y DESPUES */
-
--- CONSULTAS ORIGINALES SIN OPTIMIZACION
--- Consulta original sin upper:
-EXPLAIN PLAN FOR
-SELECT numrut,
-       fecnac,
-       t.nombre,
-       appaterno,
-       t.apmaterno
-FROM   trabajador t
-       JOIN isapre i
-         ON (i.cod_isapre = t.cod_isapre)
-WHERE  t.apmaterno = 'CASTILLO'
-ORDER BY 3;
-SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
-
--- Consulta original con upper:
-EXPLAIN PLAN FOR
-SELECT numrut,
-       fecnac,
-       t.nombre,
-       appaterno,
-       t.apmaterno
-FROM   trabajador t
-       JOIN isapre i
-         ON (i.cod_isapre = t.cod_isapre)
-WHERE  UPPER(t.apmaterno) = 'CASTILLO'
-ORDER BY 3;
-SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
-
 /*
+! IMPORTANTE: EJECUTAR AMBAS CONSULTAS PREVIO A CREACION DE INDICES PARA EVIDENCIAR ANTES Y DESPUES
+
 Análisis:
 Las consultas originales que filtraban por apellido materno realizaban un TABLE ACCESS FULL
 sobre la tabla TRABAJADOR, incluso con paralelismo automático.
@@ -648,6 +574,7 @@ lo que genera una degradación innecesaria del rendimiento.
 Teniendo en cuenta aquello, para optimizar el acceso, se creó el indice idx_trabajador_apm
 para la condición APMATERNO = 'CASTILLO' y el indice idx_trabajador_apm_2 para la
 condición UPPER(APMATERNO) = 'CASTILLO'
+
 */
 
 -- 1) Índice por apellido materno (igualdad exacta)
@@ -708,12 +635,8 @@ ORDER BY 3;
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
 
 /*
-CONCLUSIONES:
-
 Al ejecutar nuevamente las consultas y obtener los planes de ejecución evidencian que se dejó de usar FULL SCAN
 para pasar a usar INDEX RANGE SCAN sobre los índices creados y TABLE ACCESS BY INDEX ROWID BATCHED.
 Lo cual indica que las consultas acceden a los datos de forma optimizada,
-reduciendo el costo de ejecución según lo solicitado en el requerimiento.
-
-
+reduciendo el costo de ejecución según el requerimiento
 */
