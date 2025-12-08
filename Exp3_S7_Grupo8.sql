@@ -564,11 +564,98 @@ ORDER BY monto desc, nombre_trabajador;
 -- Limpieza para pruebas
 --TRUNCATE TABLE detalle_bonificaciones_trabajador;
 
-
 -- CASO 2: VISTAS
-/*
-! IMPORTANTE: EJECUTAR AMBAS CONSULTAS PREVIO A CREACION DE INDICES PARA EVIDENCIAR ANTES Y DESPUES
+-- Etapa 1: Vista V_AUMENTOS_ESTUDIOS
 
+-- Primero crear sinónimos privados
+CREATE OR REPLACE SYNONYM s_bono_escolar FOR bono_escolar;
+CREATE OR REPLACE SYNONYM s_trabajador FOR trabajador;
+
+-- Crear o reemplazar la vista V_AUMENTOS_ESTUDIOS
+CREATE OR REPLACE VIEW v_aumentos_estudios AS
+SELECT 
+    -- RUT formateado sin puntos pero con separador de miles
+    TO_CHAR(t.numrut, 'FM999G999G999') || '-' || t.dvrut AS rut_trabajador,
+    
+    -- Nombre completo (formato: "Teresa Vidal Perez")
+    INITCAP(t.nombre) || ' ' || 
+    INITCAP(t.appaterno) || ' ' || 
+    INITCAP(t.apmaterno) AS trabajador,
+    
+    -- Descripción del nivel de estudios (DESCRIP)
+    be.descrip AS descrip,
+    
+    -- Porcentaje de bono formateado como 8 dígitos (00000001, 00000002, etc.)
+    LPAD(be.porc_bono, 8, '0') AS pct_estudios,
+    
+    -- Sueldo base actual formateado sin símbolo $
+    TO_CHAR(t.sueldo_base, 'FM999G999G999') AS sueldo_actual,
+    
+    -- Aumento calculado: sueldo_base * (porc_bono/100) formateado sin símbolo $
+    TO_CHAR(
+        ROUND(t.sueldo_base * (be.porc_bono / 100)), 
+        'FM999G999G999'
+    ) AS aumento,
+    
+    -- Simulación del sueldo con aumento: sueldo_base + aumento, con símbolo $
+    TO_CHAR(
+        t.sueldo_base + ROUND(t.sueldo_base * (be.porc_bono / 100)), 
+        'FM$999G999G999'
+    ) AS sueldo_aumentado
+    
+FROM s_trabajador t
+INNER JOIN s_bono_escolar be ON t.id_escolaridad_t = be.id_escolar
+INNER JOIN tipo_trabajador tt ON t.id_categoria_t = tt.id_categoria
+WHERE tt.desc_categoria = 'CAJERO'
+   OR t.numrut IN (
+       -- Subconsulta: trabajadores con 1 o 2 cargas familiares
+       SELECT numrut_t
+       FROM asignacion_familiar
+       GROUP BY numrut_t
+       HAVING COUNT(*) BETWEEN 1 AND 2
+   )
+ORDER BY 
+    be.porc_bono ASC,
+    INITCAP(t.nombre) || ' ' || 
+    INITCAP(t.appaterno) || ' ' || 
+    INITCAP(t.apmaterno) ASC;
+
+-- Consulta para verificar la vista
+SELECT * FROM v_aumentos_estudios ORDER BY 4, 1;
+
+-- Etapa 2: Optimización de consultas
+/* ! IMPORTANTE: EJECUTAR AMBAS CONSULTAS PREVIO A CREACION DE INDICES PARA EVIDENCIAR ANTES Y DESPUES */
+
+-- CONSULTAS ORIGINALES SIN OPTIMIZACION
+-- Consulta original sin upper:
+EXPLAIN PLAN FOR
+SELECT numrut,
+       fecnac,
+       t.nombre,
+       appaterno,
+       t.apmaterno
+FROM   trabajador t
+       JOIN isapre i
+         ON (i.cod_isapre = t.cod_isapre)
+WHERE  t.apmaterno = 'CASTILLO'
+ORDER BY 3;
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+
+-- Consulta original con upper:
+EXPLAIN PLAN FOR
+SELECT numrut,
+       fecnac,
+       t.nombre,
+       appaterno,
+       t.apmaterno
+FROM   trabajador t
+       JOIN isapre i
+         ON (i.cod_isapre = t.cod_isapre)
+WHERE  UPPER(t.apmaterno) = 'CASTILLO'
+ORDER BY 3;
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+
+/*
 Análisis:
 Las consultas originales que filtraban por apellido materno realizaban un TABLE ACCESS FULL
 sobre la tabla TRABAJADOR, incluso con paralelismo automático.
@@ -579,7 +666,6 @@ lo que genera una degradación innecesaria del rendimiento.
 Teniendo en cuenta aquello, para optimizar el acceso, se creó el indice idx_trabajador_apm
 para la condición APMATERNO = 'CASTILLO' y el indice idx_trabajador_apm_2 para la
 condición UPPER(APMATERNO) = 'CASTILLO'
-
 */
 
 -- 1) Índice por apellido materno (igualdad exacta)
@@ -640,9 +726,10 @@ ORDER BY 3;
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
 
 /*
+CONCLUSIONES:
+
 Al ejecutar nuevamente las consultas y obtener los planes de ejecución evidencian que se dejó de usar FULL SCAN
 para pasar a usar INDEX RANGE SCAN sobre los índices creados y TABLE ACCESS BY INDEX ROWID BATCHED.
 Lo cual indica que las consultas acceden a los datos de forma optimizada,
-reduciendo el costo de ejecución según el requerimiento
+reduciendo el costo de ejecución según lo solicitado en el requerimiento.
 */
-
